@@ -151,7 +151,7 @@ class ViewCheckoutRequestHandler extends BillingView implements
                 throw new Exception('Invalid amount');
             }
 
-            $fraction = Currencies::getFractionDigits($this->currency);
+            $fraction = Currencies::getFractionDigits('USD');
 
             // This is temporary plan, it won't be saved to the database
             $plan = new PlanEntity(

@@ -31,7 +31,7 @@ class SettingsRequestHandler extends AbstractAdminViewRequestHandler implements
         $supported = [
             "USD", "AED", "AFN", "ALL", "AMD", "ANG", "AOA", "ARS", "AUD",
             "AWG", "AZN", "BAM", "BBD", "BDT", "BGN", "BIF", "BMD", "BND",
-            "BOB", "BRL", "BSD", "BWP", "BYN", "BZD", "CAD", "CDF", "CHF",
+            "BOB", "BRL", "BSD", "BWP", "BYN", "BZD", "CAD", "CHF",
             "CLP", "CNY", "COP", "CRC", "CVE", "CZK", "DJF", "DKK", "DOP",
             "DZD", "EGP", "ETB", "EUR", "FJD", "FKP", "GBP", "GEL", "GIP",
             "GMD", "GNF", "GTQ", "GYD", "HKD", "HNL", "HTG", "HUF", "IDR",

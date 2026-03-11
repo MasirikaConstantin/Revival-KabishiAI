@@ -80,21 +80,11 @@ implements RequestHandlerInterface
 
     private function normalizeCurrencyOptions(object $payload): void
     {
-        if (
-            isset($payload->billing)
-            && is_object($payload->billing)
-            && (!isset($payload->billing->currency)
-                || trim((string) $payload->billing->currency) === '')
-        ) {
+        if (isset($payload->billing) && is_object($payload->billing)) {
             $payload->billing->currency = 'USD';
         }
 
-        if (
-            isset($payload->freshpay)
-            && is_object($payload->freshpay)
-            && (!isset($payload->freshpay->currency)
-                || trim((string) $payload->freshpay->currency) === '')
-        ) {
+        if (isset($payload->freshpay) && is_object($payload->freshpay)) {
             $payload->freshpay->currency = 'USD';
         }
     }

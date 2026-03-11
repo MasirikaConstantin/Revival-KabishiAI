@@ -134,7 +134,7 @@ class FreshPay implements
         [$amount, $currency] = $this->helper->convert(
             $order->getTotalPrice(),
             $order->getCurrencyCode(),
-            $this->currency
+            'USD'
         );
 
         $payload = [

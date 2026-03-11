@@ -70,17 +70,12 @@
 
 							<div>
 								<label for="freshpay[currency]">{{ p__('label', 'Charge currency') }}</label>
-								<select id="freshpay[currency]" name="freshpay[currency]" class="mt-2 input">
-									{% for code, name in currencies %}
-										<option value="{{ code }}" {{ (option.freshpay.currency ?? 'USD') == code ? 'selected' : '' }}>
-											{{ name }} ({{ code }})
-										</option>
-									{% endfor %}
-								</select>
+								<input type="hidden" id="freshpay[currency]" name="freshpay[currency]" value="USD"/>
+								<div class="mt-2 input flex items-center">USD</div>
 
 								<ul class="info mt-2">
 									<li>
-										{{ __('If a currency rate provider is configured, order amounts will be converted into this currency before being sent to FreshPay.') }}
+										{{ __('FreshPay charges are sent in USD only.') }}
 									</li>
 								</ul>
 							</div>

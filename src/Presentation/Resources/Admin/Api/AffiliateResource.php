@@ -21,7 +21,7 @@ class AffiliateResource implements JsonSerializable
     {
         $u = $this->aff;
         $exchange = Application::make(ExchangeInterface::class);
-        $to = Application::make('option.billing.currency', 'USD');
+        $to = 'USD';
 
         $data = [
             'id' => $u->getId(),

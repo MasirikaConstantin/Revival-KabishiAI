@@ -151,7 +151,7 @@ class StatsApi extends ReportsApi implements RequestHandlerInterface
         }
 
         // MRR
-        $currency = $this->mrr['currency'] ?? 'USD';
+        $currency = 'USD';
         $error = null;
 
         if (

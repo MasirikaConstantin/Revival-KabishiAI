@@ -13,7 +13,7 @@
 
 	<x-form>
 		<form class="flex flex-col gap-8" @submit.prevent="submit" x-ref="form">
-			<div class="flex flex-col gap-2" x-data="{currency: '{{ option.billing.currency|default('USD') }}', fractionDigits: '{{ currency.fraction_digits }}'}">
+			<div class="flex flex-col gap-2" x-data="{currency: 'USD', fractionDigits: '2'}">
 				<section class="grid grid-cols-2 gap-6 box" data-density="comfortable">
 					<h2 class="col-span-2">{{ p__('heading', 'General') }}</h2>
 
@@ -50,13 +50,8 @@
 							{{ p__('label', 'Default Currency') }}
 						</label>
 
-						<select id="billing.currency" name="billing[currency]" class="mt-2 input" x-model="currency" @change="fractionDigits = $el.options[$el.selectedIndex].dataset.fractionDigits">
-							{% for c in currencies %}
-								<option value="{{ c.code }}" data-fraction-digits="{{ c.fraction_digits }}">
-									{{ c.name }}
-								</option>
-							{% endfor %}
-						</select>
+						<input type="hidden" id="billing.currency" name="billing[currency]" value="USD">
+						<div class="mt-2 input flex items-center">USD</div>
 					</div>
 
 					<div x-data="{provider: `{{ option.currency.provider ?? '' }}`}">

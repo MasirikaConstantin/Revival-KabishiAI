@@ -99,7 +99,7 @@ class CheckoutRequestHandler extends BillingApi implements
                     throw new UnprocessableEntityException('Invalid amount');
                 }
 
-                $fraction = Currencies::getFractionDigits($this->currency);
+                $fraction = Currencies::getFractionDigits('USD');
                 $credits = ($amount / 10 ** $fraction) * $this->customCreditsRate;
 
                 $plan = new PlanEntity(

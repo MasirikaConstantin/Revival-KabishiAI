@@ -26,7 +26,7 @@ class PayoutResource implements JsonSerializable
         $p = $this->payout;
 
         $exchange = Application::make(ExchangeInterface::class);
-        $to = Application::make('option.billing.currency', 'USD');
+        $to = 'USD';
 
         return [
             'id' => $p->getId(),

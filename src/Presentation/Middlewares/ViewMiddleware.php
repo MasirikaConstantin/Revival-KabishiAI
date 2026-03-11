@@ -83,9 +83,7 @@ class ViewMiddleware implements MiddlewareInterface
 
         $viewNamespace = $this->getViewNamespace($request);
         $data['view_namespace'] = $viewNamespace;
-        $data['currency'] = new CurrencyResource(
-            $this->optionResolver->resolve('option.billing.currency') ?: 'USD'
-        );
+        $data['currency'] = new CurrencyResource('USD');
 
         $user = $request->getAttribute(UserEntity::class);
 

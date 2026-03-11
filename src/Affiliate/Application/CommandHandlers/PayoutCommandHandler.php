@@ -29,7 +29,7 @@ class PayoutCommandHandler
         $balance = $this->exchange->convert(
             $affiliate->getBalance(),
             'USD',
-            $this->currency,
+            'USD',
         );
 
         if ($balance->value < $this->minPayoutAmount) {
