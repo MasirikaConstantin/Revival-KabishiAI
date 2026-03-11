@@ -500,6 +500,16 @@ checkout(
 														</p>
 													</div>
 
+													<div class="grid gap-2 p-4 text-sm rounded-xl bg-main border border-line-dimmed">
+														<div class="font-medium">{{ __('How subscription payment works with FreshPay') }}</div>
+														<ol class="flex flex-col gap-1 list-decimal list-inside text-content-dimmed">
+															<li>{{ __('Enter the phone number that will receive the payment prompt.') }}</li>
+															<li>{{ __('Choose the operator or method used by the customer, for example airtel.') }}</li>
+															<li>{{ __('Click Pay with FreshPay and confirm the payment request on the phone.') }}</li>
+															<li>{{ __('You are redirected to the order receipt where payment status is refreshed automatically.') }}</li>
+														</ol>
+													</div>
+
 													<div class="grid gap-4 md:grid-cols-2">
 														<div class="flex flex-col gap-2">
 															<label for="freshpay.customer_number">{{ p__('label', 'Customer number') }}</label>
@@ -516,6 +526,10 @@ checkout(
 														<span>{{ __('Pay with FreshPay') }}</span>
 														{% include "/snippets/spinner.twig" %}
 													</button>
+
+													<p class="text-xs text-content-dimmed">
+														{{ __('Use the same number that will validate the payment on the phone.') }}
+													</p>
 												</div>
 											{% endif %}
 

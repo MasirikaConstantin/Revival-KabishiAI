@@ -24,6 +24,7 @@ class OrderResource implements JsonSerializable
             'id' => $o->getId(),
             'currency' => new CurrencyResource($o->getCurrencyCode()),
             'status' => $o->getStatus(),
+            'external_id' => $o->getExternalId(),
             'trial_period_days' => $o->getTrialPeriodDays(),
             'created_at' => new DateTimeResource($o->getCreatedAt()),
             'updated_at' => new DateTimeResource($o->getUpdatedAt()),

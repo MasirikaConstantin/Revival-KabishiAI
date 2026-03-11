@@ -142,12 +142,12 @@
 								<h2>{{ p__('heading', 'Pending') }}</h2>
 
 								<p class="text-sm">
-									{{ __('Waiting for payment.') }}
+									{{ order.payment_gateway == 'freshpay' ? __('Waiting for FreshPay confirmation.') : __('Waiting for payment.') }}
 								</p>
 							</div>
 
 							<p class="text-sm text-content-dimmed">
-								{{ __('Please make the payment to complete the order.') }}
+								{{ order.payment_gateway == 'freshpay' ? __('Complete the payment on the customer phone. This page can refresh automatically once FreshPay confirms it.') : __('Please make the payment to complete the order.') }}
 							</p>
 						{% else %}
 							<div class="flex flex-col gap-1">
@@ -174,7 +174,63 @@
 		</div>
 
 		{% if order.status == 'pending' %}
-			{% if order.payment_gateway == 'bank-transfer' %}
+			{% if order.payment_gateway == 'freshpay' %}
+				<div class="p-8 box" x-data="freshpayReceipt(`{{ order.id }}`, `{{ order.status }}`)">
+					<div class="flex flex-col gap-6">
+						<div class="flex flex-col gap-2">
+							<h2>FreshPay</h2>
+							<p class="text-sm text-content-dimmed">
+								{{ __('The subscription order has been created and is waiting for FreshPay confirmation.') }}
+							</p>
+						</div>
+
+						<div class="grid gap-3 md:grid-cols-2">
+							<div class="flex flex-col gap-1 p-4 rounded-xl bg-intermediate">
+								<div class="label">{{ __('Order reference') }}</div>
+								<x-copy>{{ order.id }}</x-copy>
+							</div>
+
+							{% if order.external_id %}
+								<div class="flex flex-col gap-1 p-4 rounded-xl bg-intermediate">
+									<div class="label">{{ __('FreshPay reference') }}</div>
+									<x-copy>{{ order.external_id }}</x-copy>
+								</div>
+							{% endif %}
+						</div>
+
+						<div class="grid gap-3 p-5 rounded-2xl border border-line-dimmed bg-intermediate/30">
+							<div class="font-medium">{{ __('Next steps') }}</div>
+							<ol class="flex flex-col gap-2 text-sm list-decimal list-inside text-content-dimmed">
+								<li>{{ __('Check the phone used for payment and approve the FreshPay request.') }}</li>
+								<li>{{ __('Keep this page open while FreshPay sends the callback confirmation.') }}</li>
+								<li>{{ __('Use the refresh button below if payment was approved but status has not changed yet.') }}</li>
+								<li>{{ __('Once confirmed, the subscription is activated automatically.') }}</li>
+							</ol>
+						</div>
+
+						<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+							<div class="text-sm text-content-dimmed">
+								<span x-show="lastCheckedAt">
+									{{ __('Last status check:') }}
+									<span x-text="lastCheckedAt"></span>
+								</span>
+								<span x-show="!lastCheckedAt">
+									{{ __('Automatic status refresh is active.') }}
+								</span>
+							</div>
+
+							<button type="button" class="button button-outline button-sm" @click="checkStatus()" :processing="isChecking">
+								{% include "/snippets/spinner.twig" %}
+								{{ p__('button', 'Refresh status') }}
+							</button>
+						</div>
+
+						<p class="text-xs text-content-dimmed">
+							{{ __('If the payment has already been approved on the phone, the status usually updates a few seconds later.') }}
+						</p>
+					</div>
+				</div>
+			{% elseif order.payment_gateway == 'bank-transfer' %}
 				<div class="p-8 box">
 					<h2>{{ __('Bank transfer') }}</h2>
 					<p class="mb-6">

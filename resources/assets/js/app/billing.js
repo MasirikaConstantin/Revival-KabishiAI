@@ -35,6 +35,47 @@ export function billingView() {
         }
     }));
 
+    Alpine.data('freshpayReceipt', (orderId, initialStatus) => ({
+        orderId: orderId,
+        status: initialStatus,
+        isChecking: false,
+        timer: null,
+        lastCheckedAt: null,
+
+        init() {
+            if (this.status !== 'pending') {
+                return;
+            }
+
+            this.timer = window.setInterval(() => {
+                this.checkStatus(false);
+            }, 8000);
+        },
+
+        checkStatus(showLoader = true) {
+            if (this.isChecking) {
+                return;
+            }
+
+            this.isChecking = showLoader;
+
+            api.get(`/billing/orders/${this.orderId}`)
+                .then(response => response.json())
+                .then(order => {
+                    this.status = order.status;
+                    this.lastCheckedAt = new Date().toLocaleTimeString();
+
+                    if (order.status !== 'pending') {
+                        window.clearInterval(this.timer);
+                        window.location.reload();
+                    }
+                })
+                .finally(() => {
+                    this.isChecking = false;
+                });
+        }
+    }));
+
     Alpine.data('plans', () => ({
         state: 'initial',
         plans: {
