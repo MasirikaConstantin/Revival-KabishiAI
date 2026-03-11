@@ -4,7 +4,14 @@ declare(strict_types=1);
 
 namespace Billing\Infrastructure\Payments\Gateways\FreshPay;
 
+use Billing\Application\Commands\CancelOrderCommand;
+use Billing\Application\Commands\CancelSubscriptionCommand;
+use Billing\Application\Commands\FulfillOrderCommand;
+use Billing\Application\Commands\PayOrderCommand;
 use Billing\Domain\Entities\OrderEntity;
+use Billing\Domain\Exceptions\AlreadyFulfilledException;
+use Billing\Domain\Exceptions\AlreadyPaidException;
+use Billing\Domain\Exceptions\InvalidOrderStateException;
 use Billing\Domain\ValueObjects\ExternalId;
 use Billing\Domain\ValueObjects\PaymentGateway;
 use Billing\Infrastructure\Payments\CheckoutDataAwarePaymentGatewayInterface;
@@ -12,19 +19,22 @@ use Billing\Infrastructure\Payments\Exceptions\PaymentException;
 use Billing\Infrastructure\Payments\Helper;
 use Billing\Infrastructure\Payments\OffsitePaymentGatewayInterface;
 use Billing\Infrastructure\Payments\PurchaseToken;
+use Billing\Infrastructure\Payments\TransactionStatusAwarePaymentGatewayInterface;
 use Billing\Infrastructure\Payments\WebhookHandlerInterface;
 use Easy\Container\Attributes\Inject;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Message\UriFactoryInterface;
 use Psr\Http\Message\UriInterface;
 use Psr\Log\LoggerInterface;
+use Shared\Infrastructure\CommandBus\Dispatcher;
 use Shared\Infrastructure\Atributes\BuiltInAspect;
 use Symfony\Component\Intl\Currencies;
 
 #[BuiltInAspect]
 class FreshPay implements
     OffsitePaymentGatewayInterface,
-    CheckoutDataAwarePaymentGatewayInterface
+    CheckoutDataAwarePaymentGatewayInterface,
+    TransactionStatusAwarePaymentGatewayInterface
 {
     public const LOOKUP_KEY = 'freshpay';
 
@@ -33,12 +43,13 @@ class FreshPay implements
         private Helper $helper,
         private UriFactoryInterface $uriFactory,
         private LoggerInterface $logger,
+        private Dispatcher $dispatcher,
 
         #[Inject('option.freshpay.is_enabled')]
         private bool $isEnabled = false,
 
         #[Inject('option.freshpay.currency')]
-        private string $currency = 'CDF',
+        private string $currency = 'USD',
 
         #[Inject('option.freshpay.merchant_id')]
         private ?string $merchantId = null,
@@ -224,6 +235,53 @@ class FreshPay implements
         return WebhookRequestHandler::class;
     }
 
+    public function syncOrderStatus(OrderEntity $order): void
+    {
+        $remote = $this->verifyOrder($order);
+        if (!$remote) {
+            return;
+        }
+
+        $state = $remote['state'];
+        if ($state === 'pending') {
+            return;
+        }
+
+        if ($state === 'failed') {
+            try {
+                $this->dispatcher->dispatch(new CancelOrderCommand($order));
+            } catch (InvalidOrderStateException) {
+            }
+
+            return;
+        }
+
+        $previousSubscription = $order->getWorkspace()->getSubscription();
+        $externalId = $remote['external_id']
+            ?: ($order->getExternalId()->value ?: $order->getId()->getValue()->toString());
+
+        try {
+            $this->dispatcher->dispatch(
+                new PayOrderCommand($order, self::LOOKUP_KEY, $externalId)
+            );
+        } catch (AlreadyPaidException|AlreadyFulfilledException) {
+        }
+
+        try {
+            $this->dispatcher->dispatch(new FulfillOrderCommand($order));
+        } catch (AlreadyFulfilledException) {
+        }
+
+        if (
+            $previousSubscription
+            && $order->getPlan()->getBillingCycle()->isRenewable()
+        ) {
+            $this->dispatcher->dispatch(
+                new CancelSubscriptionCommand($previousSubscription)
+            );
+        }
+    }
+
     private function resolveCustomerNumber(
         OrderEntity $order,
         string $customerNumber
@@ -265,6 +323,137 @@ class FreshPay implements
         }
 
         return '';
+    }
+
+    /**
+     * @return array{state:string,external_id:string|null}|null
+     */
+    private function verifyOrder(OrderEntity $order): ?array
+    {
+        $this->validateConfiguration();
+
+        foreach ($this->getVerificationReferences($order) as $reference) {
+            $payload = [
+                'merchant_id' => $this->merchantId,
+                'merchant_secrete' => $this->merchantSecret,
+                'action' => 'verify',
+                'reference' => $reference,
+            ];
+
+            $this->logger->info('FreshPay verify payload prepared', [
+                'order_id' => $order->getId()->getValue()->toString(),
+                'reference' => $reference,
+            ]);
+
+            try {
+                $response = $this->client->sendRequest($payload);
+            } catch (ClientExceptionInterface $exception) {
+                $this->logger->error('FreshPay verify request failed', [
+                    'order_id' => $order->getId()->getValue()->toString(),
+                    'reference' => $reference,
+                    'message' => $exception->getMessage(),
+                ]);
+                return null;
+            }
+
+            $status = $response->getStatusCode();
+            $body = trim($response->getBody()->getContents());
+            $data = $body !== '' ? json_decode($body, true) : [];
+
+            $this->logger->info('FreshPay verify response received', [
+                'order_id' => $order->getId()->getValue()->toString(),
+                'reference' => $reference,
+                'status' => $status,
+                'body' => is_array($data) ? $data : $body,
+            ]);
+
+            if ($status < 200 || $status >= 300 || !is_array($data)) {
+                continue;
+            }
+
+            $state = $this->resolveRemoteState($data);
+            if ($state === null) {
+                continue;
+            }
+
+            return [
+                'state' => $state,
+                'external_id' => $this->extractString(
+                    $data,
+                    ['Transaction_id', 'transaction_id', 'Reference', 'reference']
+                ),
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function getVerificationReferences(OrderEntity $order): array
+    {
+        $references = [];
+        $externalId = trim((string) $order->getExternalId()->value);
+        if ($externalId !== '') {
+            $references[] = $externalId;
+        }
+
+        $references[] = $order->getId()->getValue()->toString();
+
+        return array_values(array_unique($references));
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function resolveRemoteState(array $payload): ?string
+    {
+        $status = strtolower((string) (
+            $this->extractString(
+                $payload,
+                [
+                    'Trans_Status',
+                    'trans_status',
+                    'transaction_status',
+                    'payment_status',
+                    'state',
+                    'result',
+                    'Status',
+                    'status',
+                ]
+            ) ?? ''
+        ));
+
+        if ($status === '') {
+            return null;
+        }
+
+        if (in_array(
+            $status,
+            ['success', 'successful', 'paid', 'completed', 'approved'],
+            true
+        )) {
+            return 'completed';
+        }
+
+        if (in_array(
+            $status,
+            ['failed', 'fail', 'rejected', 'cancelled', 'canceled', 'error', 'expired'],
+            true
+        )) {
+            return 'failed';
+        }
+
+        if (in_array(
+            $status,
+            ['pending', 'processing', 'initiated', 'waiting', 'in_progress', 'in progress'],
+            true
+        )) {
+            return 'pending';
+        }
+
+        return null;
     }
 
     private function maskPhoneNumber(string $value): ?string

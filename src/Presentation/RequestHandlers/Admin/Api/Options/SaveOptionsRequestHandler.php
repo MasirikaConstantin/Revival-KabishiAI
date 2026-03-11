@@ -35,6 +35,7 @@ implements RequestHandlerInterface
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
         $payload = (object) $request->getParsedBody();
+        $this->normalizeCurrencyOptions($payload);
 
         $path = $this->rootDir . '/.env';
         $menv = new Env($path);
@@ -75,6 +76,27 @@ implements RequestHandlerInterface
         }
 
         return new EmptyResponse();
+    }
+
+    private function normalizeCurrencyOptions(object $payload): void
+    {
+        if (
+            isset($payload->billing)
+            && is_object($payload->billing)
+            && (!isset($payload->billing->currency)
+                || trim((string) $payload->billing->currency) === '')
+        ) {
+            $payload->billing->currency = 'USD';
+        }
+
+        if (
+            isset($payload->freshpay)
+            && is_object($payload->freshpay)
+            && (!isset($payload->freshpay->currency)
+                || trim((string) $payload->freshpay->currency) === '')
+        ) {
+            $payload->freshpay->currency = 'USD';
+        }
     }
 
     /**

@@ -7,6 +7,8 @@ namespace Presentation\RequestHandlers\Api\Billing;
 use Billing\Application\Commands\ReadOrderCommand;
 use Billing\Domain\Entities\OrderEntity;
 use Billing\Domain\Exceptions\OrderNotFoundException;
+use Billing\Infrastructure\Payments\PaymentGatewayFactoryInterface;
+use Billing\Infrastructure\Payments\TransactionStatusAwarePaymentGatewayInterface;
 use Easy\Http\Message\RequestMethod;
 use Easy\Router\Attributes\Route;
 use Presentation\Exceptions\NotFoundException;
@@ -23,7 +25,8 @@ class ReadOrderRequestHandler extends BillingApi implements
     RequestHandlerInterface
 {
     public function __construct(
-        private Dispatcher $dispatcher
+        private Dispatcher $dispatcher,
+        private PaymentGatewayFactoryInterface $factory
     ) {}
 
     public function handle(ServerRequestInterface $request): ResponseInterface
@@ -48,6 +51,16 @@ class ReadOrderRequestHandler extends BillingApi implements
             !== (string) $workspace->getId()->getValue()
         ) {
             throw new NotFoundException(param: 'id');
+        }
+
+        if ($order->getStatus()->value === 'pending') {
+            try {
+                $gateway = $this->factory->create($order->getPaymentGateway()->value);
+                if ($gateway instanceof TransactionStatusAwarePaymentGatewayInterface) {
+                    $gateway->syncOrderStatus($order);
+                }
+            } catch (\Throwable) {
+            }
         }
 
         return new JsonResponse(new OrderResource($order));

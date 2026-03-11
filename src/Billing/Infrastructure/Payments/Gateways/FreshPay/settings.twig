@@ -72,7 +72,7 @@
 								<label for="freshpay[currency]">{{ p__('label', 'Charge currency') }}</label>
 								<select id="freshpay[currency]" name="freshpay[currency]" class="mt-2 input">
 									{% for code, name in currencies %}
-										<option value="{{ code }}" {{ (option.freshpay.currency ?? 'CDF') == code ? 'selected' : '' }}>
+										<option value="{{ code }}" {{ (option.freshpay.currency ?? 'USD') == code ? 'selected' : '' }}>
 											{{ name }} ({{ code }})
 										</option>
 									{% endfor %}

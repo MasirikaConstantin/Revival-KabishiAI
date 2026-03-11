@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Billing\Infrastructure\Payments\Gateways\FreshPay;
 
 use Billing\Application\Commands\CancelSubscriptionCommand;
+use Billing\Application\Commands\CancelOrderCommand;
 use Billing\Application\Commands\FulfillOrderCommand;
 use Billing\Application\Commands\PayOrderCommand;
 use Billing\Application\Commands\ReadOrderCommand;
 use Billing\Domain\Exceptions\AlreadyFulfilledException;
 use Billing\Domain\Exceptions\AlreadyPaidException;
+use Billing\Domain\Exceptions\InvalidOrderStateException;
 use Billing\Domain\Exceptions\OrderNotFoundException;
 use Billing\Infrastructure\Payments\Exceptions\WebhookException;
 use Billing\Infrastructure\Payments\WebhookHandlerInterface;
@@ -67,7 +69,8 @@ class WebhookRequestHandler implements WebhookHandlerInterface
             throw new WebhookException('Invalid encryption.', 400);
         }
 
-        if (!$this->isSuccessful($decrypted)) {
+        $state = $this->resolveTransactionState($decrypted);
+        if ($state === 'pending') {
             return;
         }
 
@@ -86,11 +89,20 @@ class WebhookRequestHandler implements WebhookHandlerInterface
             throw new WebhookException('Order not found.', 400);
         }
 
+        if ($state === 'failed') {
+            try {
+                $this->dispatcher->dispatch(new CancelOrderCommand($order));
+            } catch (InvalidOrderStateException) {
+            }
+
+            return;
+        }
+
         $previousSubscription = $order->getWorkspace()->getSubscription();
 
         $externalId = $this->extractString(
             $decrypted,
-            ['transaction_id', 'payment_id', 'id', 'reference']
+            ['transaction_id', 'Transaction_id', 'payment_id', 'id', 'reference', 'Reference']
         ) ?: $reference;
 
         try {
@@ -256,22 +268,43 @@ class WebhookRequestHandler implements WebhookHandlerInterface
     /**
      * @param array<string,mixed> $payload
      */
-    private function isSuccessful(array $payload): bool
+    private function resolveTransactionState(array $payload): string
     {
         $status = strtolower((string) $this->extractString(
             $payload,
-            ['status', 'payment_status', 'state', 'result']
+            [
+                'Trans_Status',
+                'trans_status',
+                'transaction_status',
+                'payment_status',
+                'state',
+                'result',
+                'Status',
+                'status',
+            ]
         ));
 
         if ($status === '') {
-            return true;
+            return 'pending';
         }
 
-        return in_array(
+        if (in_array(
             $status,
             ['success', 'successful', 'paid', 'completed', 'approved'],
             true
-        );
+        )) {
+            return 'completed';
+        }
+
+        if (in_array(
+            $status,
+            ['failed', 'fail', 'rejected', 'cancelled', 'canceled', 'error', 'expired'],
+            true
+        )) {
+            return 'failed';
+        }
+
+        return 'pending';
     }
 
     /**
