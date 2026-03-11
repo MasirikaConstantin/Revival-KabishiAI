@@ -1,8 +1,8 @@
 <aside class="sticky z-10 py-4 top-0 hidden lg:flex flex-col gap-4 h-screen shrink-0 w-64 bg-intermediate text-intermediate-content group-data-collapsed/html:-ms-64 border-e border-line dark:border-line-dimmed transition-[margin] ease-in" x-data>
 	<div class="relative flex items-center justify-between px-4">
 		<a href="{{ view_namespace }}">
-			<img src="{{ option.brand.logo_dark ?? '/assets/logo-light.svg' }}" alt="{{ option.site.name ?? 'Logo' }}" class="hidden dark:block max-w-[140px] h-6 object-contain object-left">
-			<img src="{{ option.brand.logo ?? '/assets/logo-dark.svg' }}" alt="{{ option.site.name ?? 'Logo' }}" class="block dark:hidden max-w-[140px] h-6 object-contain object-left">
+			<img src="{{ option.brand.logo_dark ?? '/assets/logo-kabishi.png' }}" alt="{{ option.site.name ?? 'Logo' }}" class="hidden dark:block max-w-[140px] h-6 object-contain object-left">
+			<img src="{{ option.brand.logo ?? '/assets/logo-kabishi.png' }}" alt="{{ option.site.name ?? 'Logo' }}" class="block dark:hidden max-w-[140px] h-6 object-contain object-left">
 		</a>
 
 		{% if option.color_scheme.modes is not defined or option.color_scheme.modes|length > 1 %}
