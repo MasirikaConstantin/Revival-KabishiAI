@@ -102,14 +102,9 @@ class FreshPay implements
     ): UriInterface|PurchaseToken|string {
         $this->validateConfiguration();
 
-        $freshpay = $data['freshpay'] ?? [];
         $customerNumber = $this->resolveCustomerNumber(
             $order,
-            (string) (
-                $freshpay['customer_number']
-                ?? $data['customer_number']
-                ?? ''
-            )
+            $this->extractCustomerNumber($data)
         );
 
         if (!$customerNumber) {
@@ -134,11 +129,11 @@ class FreshPay implements
             'merchant_secrete' => $this->merchantSecret,
             'amount' => $this->formatAmount($amount->value, $currency->value),
             'currency' => $currency->value,
-            'action' => 'credit',
+            'action' => 'debit',
             'customer_number' => $customerNumber,
             'firstname' => $this->firstName,
             'lastname' => $this->lastName,
-            'e-mail' => $this->email,
+            'email' => $this->email,
             'reference' => $order->getId()->getValue()->toString(),
             'method' => $method,
             'callback_url' => $this->helper->generateWebhookUrl(
@@ -225,6 +220,29 @@ class FreshPay implements
 
         $ownerPhone = $workspace->getOwner()->getPhoneNumber()->value;
         return $this->normalizePhoneNumber((string) $ownerPhone);
+    }
+
+    /**
+     * @param array<string,mixed> $data
+     */
+    private function extractCustomerNumber(array $data): string
+    {
+        $freshpay = $data['freshpay'] ?? null;
+        if (is_array($freshpay) && array_key_exists('customer_number', $freshpay)) {
+            return (string) $freshpay['customer_number'];
+        }
+
+        foreach ([
+            'customer_number',
+            'freshpay.customer_number',
+            'freshpay[customer_number]',
+        ] as $key) {
+            if (array_key_exists($key, $data)) {
+                return (string) $data[$key];
+            }
+        }
+
+        return '';
     }
 
     private function validateConfiguration(): void

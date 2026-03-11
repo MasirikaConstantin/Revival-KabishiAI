@@ -170,6 +170,8 @@ class CheckoutRequestHandler extends BillingApi implements
             'gateway' => 'string',
             'coupon' => 'string|nullable',
             'freshpay.customer_number' => 'nullable|string|max:30',
+            'customer_number' => 'nullable|string|max:30',
+            'freshpay[customer_number]' => 'nullable|string|max:30',
         ]);
 
         /** @var UserEntity */
@@ -189,12 +191,7 @@ class CheckoutRequestHandler extends BillingApi implements
             return;
         }
 
-        $freshpay = (object) ($payload->freshpay ?? []);
-        $customerNumber = trim((string) (
-            $freshpay->customer_number
-            ?? $payload->customer_number
-            ?? ''
-        ));
+        $customerNumber = trim($this->extractFreshpayCustomerNumber($payload));
         $workspacePhone = $workspace->getAddress()?->phoneNumber;
         $userPhone = $user->getPhoneNumber()->value;
 
@@ -207,5 +204,28 @@ class CheckoutRequestHandler extends BillingApi implements
                 'FreshPay customer number is required. Add one in checkout, workspace billing address or account profile.'
             );
         }
+    }
+
+    private function extractFreshpayCustomerNumber(object $payload): string
+    {
+        $freshpay = $payload->freshpay ?? null;
+        if (
+            is_object($freshpay)
+            && property_exists($freshpay, 'customer_number')
+        ) {
+            return (string) $freshpay->customer_number;
+        }
+
+        foreach ([
+            'customer_number',
+            'freshpay.customer_number',
+            'freshpay[customer_number]',
+        ] as $property) {
+            if (property_exists($payload, $property)) {
+                return (string) $payload->{$property};
+            }
+        }
+
+        return '';
     }
 }
