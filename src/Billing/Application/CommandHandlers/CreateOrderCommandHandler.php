@@ -61,10 +61,14 @@ class CreateOrderCommandHandler
                 : $this->crepo->ofUniqueKey($cmd->coupon);
         }
 
+        $currency = is_string($this->currency) && $this->currency !== ''
+            ? CurrencyCode::tryFrom($this->currency)
+            : null;
+
         $order = new OrderEntity(
             $ws,
             $plan,
-            CurrencyCode::tryFrom($this->currency) ?? CurrencyCode::USD,
+            $currency ?? CurrencyCode::USD,
             new TrialPeriodDays($this->trialPeriodDays),
             $coupon
         );
