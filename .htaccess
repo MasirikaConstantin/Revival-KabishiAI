@@ -1,0 +1,10 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+       # Exclure le dossier public/storage
+    RewriteCond %{REQUEST_URI} !^/public/storage/
+
+    # Rediriger tout vers le dossier public
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ /public/$1 [L]
+</IfModule>
