@@ -19,11 +19,19 @@ class OrderResource implements JsonSerializable
     {
         $o = $this->order;
         $coupon = $o->getCoupon();
+        $status = $o->getStatus();
+
+        if (
+            $status->value === 'cancelled'
+            && $o->getPaymentGateway()->value === 'freshpay'
+        ) {
+            $status = \Billing\Domain\ValueObjects\OrderStatus::FAILED;
+        }
 
         return [
             'id' => $o->getId(),
             'currency' => new CurrencyResource($o->getCurrencyCode()),
-            'status' => $o->getStatus(),
+            'status' => $status,
             'external_id' => $o->getExternalId(),
             'trial_period_days' => $o->getTrialPeriodDays(),
             'created_at' => new DateTimeResource($o->getCreatedAt()),
