@@ -33,6 +33,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\UriInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Psr\Log\LoggerInterface;
 use Shared\Infrastructure\CommandBus\Dispatcher;
 use Symfony\Component\Intl\Currencies;
 use User\Domain\Entities\UserEntity;
@@ -47,6 +48,7 @@ class CheckoutRequestHandler extends BillingApi implements
         private WorkspaceAccessControl $ac,
         private Dispatcher $dispatcher,
         private PaymentGatewayFactoryInterface $factory,
+        private LoggerInterface $logger,
 
         #[Inject('option.billing.custom_credits.enabled')]
         private bool $customCreditsEnabled = false,
@@ -195,6 +197,14 @@ class CheckoutRequestHandler extends BillingApi implements
         $workspacePhone = $workspace->getAddress()?->phoneNumber;
         $userPhone = $user->getPhoneNumber()->value;
 
+        $this->logger->info('FreshPay checkout request received', [
+            'payload_keys' => array_keys((array) $payload),
+            'has_freshpay_object' => property_exists($payload, 'freshpay'),
+            'customer_number' => $this->maskPhoneNumber($customerNumber),
+            'workspace_phone' => $this->maskPhoneNumber((string) $workspacePhone),
+            'user_phone' => $this->maskPhoneNumber((string) $userPhone),
+        ]);
+
         if (
             $customerNumber === ''
             && !$workspacePhone
@@ -227,5 +237,20 @@ class CheckoutRequestHandler extends BillingApi implements
         }
 
         return '';
+    }
+
+    private function maskPhoneNumber(string $value): ?string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        $length = strlen($value);
+        if ($length <= 4) {
+            return str_repeat('*', $length);
+        }
+
+        return str_repeat('*', $length - 4) . substr($value, -4);
     }
 }

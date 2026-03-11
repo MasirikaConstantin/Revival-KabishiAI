@@ -17,6 +17,7 @@ use Easy\Container\Attributes\Inject;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Message\UriFactoryInterface;
 use Psr\Http\Message\UriInterface;
+use Psr\Log\LoggerInterface;
 use Shared\Infrastructure\Atributes\BuiltInAspect;
 use Symfony\Component\Intl\Currencies;
 
@@ -31,6 +32,7 @@ class FreshPay implements
         private Client $client,
         private Helper $helper,
         private UriFactoryInterface $uriFactory,
+        private LoggerInterface $logger,
 
         #[Inject('option.freshpay.is_enabled')]
         private bool $isEnabled = false,
@@ -142,9 +144,23 @@ class FreshPay implements
             ),
         ];
 
+        $this->logger->info('FreshPay API payload prepared', [
+            'order_id' => $order->getId()->getValue()->toString(),
+            'customer_number' => $this->maskPhoneNumber($customerNumber),
+            'method' => $method,
+            'amount' => $payload['amount'],
+            'currency' => $payload['currency'],
+            'reference' => $payload['reference'],
+            'callback_url' => $payload['callback_url'],
+        ]);
+
         try {
             $response = $this->client->sendRequest($payload);
         } catch (ClientExceptionInterface $exception) {
+            $this->logger->error('FreshPay API request failed', [
+                'order_id' => $order->getId()->getValue()->toString(),
+                'message' => $exception->getMessage(),
+            ]);
             throw new PaymentException(
                 $exception->getMessage(),
                 $exception->getCode(),
@@ -155,6 +171,12 @@ class FreshPay implements
         $status = $response->getStatusCode();
         $body = trim($response->getBody()->getContents());
         $data = $body !== '' ? json_decode($body, true) : [];
+
+        $this->logger->info('FreshPay API response received', [
+            'order_id' => $order->getId()->getValue()->toString(),
+            'status' => $status,
+            'body' => is_array($data) ? $data : $body,
+        ]);
 
         if ($status < 200 || $status >= 300) {
             $message = is_array($data)
@@ -243,6 +265,21 @@ class FreshPay implements
         }
 
         return '';
+    }
+
+    private function maskPhoneNumber(string $value): ?string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return null;
+        }
+
+        $length = strlen($value);
+        if ($length <= 4) {
+            return str_repeat('*', $length);
+        }
+
+        return str_repeat('*', $length - 4) . substr($value, -4);
     }
 
     private function validateConfiguration(): void
