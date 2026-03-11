@@ -14,8 +14,10 @@ use Billing\Domain\ValueObjects\BillingCycle;
 use Billing\Domain\ValueObjects\CreditCount;
 use Billing\Domain\ValueObjects\Price;
 use Billing\Domain\ValueObjects\Title;
+use Billing\Infrastructure\Payments\CheckoutDataAwarePaymentGatewayInterface;
 use Billing\Infrastructure\Payments\PaymentGatewayFactoryInterface;
 use Billing\Infrastructure\Payments\Exceptions\PaymentException;
+use Billing\Infrastructure\Payments\Gateways\FreshPay\FreshPay;
 use Billing\Infrastructure\Payments\PurchaseToken;
 use Easy\Container\Attributes\Inject;
 use Easy\Http\Message\RequestMethod;
@@ -119,7 +121,10 @@ class CheckoutRequestHandler extends BillingApi implements
             $gateway = $this->factory->create($payload->gateway);
 
             try {
-                $resp = $gateway->purchase($order);
+                $checkoutData = json_decode(json_encode($payload), true) ?: [];
+                $resp = $gateway instanceof CheckoutDataAwarePaymentGatewayInterface
+                    ? $gateway->purchaseWithCheckoutData($order, $checkoutData)
+                    : $gateway->purchase($order);
             } catch (PaymentException $th) {
                 throw new UnprocessableEntityException(
                     previous: $th,
@@ -163,7 +168,9 @@ class CheckoutRequestHandler extends BillingApi implements
             'id' => 'required_without:amount|uuid|nullable',
             'amount' => 'required_without:id|integer|nullable',
             'gateway' => 'string',
-            'coupon' => 'string|nullable'
+            'coupon' => 'string|nullable',
+            'freshpay.customer_number' => 'nullable|string|max:30',
+            'freshpay.method' => 'nullable|string|max:30',
         ]);
 
         /** @var UserEntity */
@@ -177,5 +184,23 @@ class CheckoutRequestHandler extends BillingApi implements
             $user,
             $workspace
         );
+
+        $payload = (object) $req->getParsedBody();
+        if (($payload->gateway ?? null) !== FreshPay::LOOKUP_KEY) {
+            return;
+        }
+
+        $freshpay = (object) ($payload->freshpay ?? []);
+        if (!($freshpay->customer_number ?? null)) {
+            throw new UnprocessableEntityException(
+                'FreshPay customer number is required.'
+            );
+        }
+
+        if (!($freshpay->method ?? null)) {
+            throw new UnprocessableEntityException(
+                'FreshPay payment method is required.'
+            );
+        }
     }
 }

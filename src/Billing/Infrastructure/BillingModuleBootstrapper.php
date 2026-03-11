@@ -18,6 +18,7 @@ use Billing\Infrastructure\Currency\RateProviderCollectionInterface;
 use Billing\Infrastructure\Currency\RateProviders\CurrencyApi\CurrencyApi;
 use Billing\Infrastructure\Currency\RateProviders\NullRateProvider;
 use Billing\Infrastructure\Payments\Gateways\BankTransfer\BankTransfer;
+use Billing\Infrastructure\Payments\Gateways\FreshPay\FreshPay;
 use Billing\Infrastructure\Payments\Gateways\ManualPayment\ManualPayment;
 use Billing\Infrastructure\Payments\Gateways\PayPal\PayPal;
 use Billing\Infrastructure\Payments\Gateways\Stripe\Stripe;
@@ -80,6 +81,7 @@ class BillingModuleBootstrapper implements BootstrapperInterface
         $this->factory
             ->register(Stripe::LOOKUP_KEY, Stripe::class)
             ->register(PayPal::LOOKUP_KEY, PayPal::class)
+            ->register(FreshPay::LOOKUP_KEY, FreshPay::class)
             ->register(BankTransfer::LOOKUP_KEY, BankTransfer::class)
             ->register(ManualPayment::LOOKUP_KEY, ManualPayment::class);
     }

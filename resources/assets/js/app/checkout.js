@@ -430,6 +430,10 @@ export function checkoutView() {
         proceed: null,
         applying: false,
         offlinePayment: null,
+        freshpay: {
+            customer_number: '',
+            method: 'airtel',
+        },
 
         init() {
             this.preCheck();
@@ -532,6 +536,10 @@ export function checkoutView() {
             let body = {
                 gateway: gateway,
                 card: card,
+            }
+
+            if (gateway === 'freshpay') {
+                body.freshpay = { ...this.freshpay };
             }
 
             if (isCustom) {

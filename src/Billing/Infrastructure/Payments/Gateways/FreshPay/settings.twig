@@ -1,0 +1,148 @@
+{% extends "/layouts/main.twig" %}
+{% set active_menu = '/admin/settings' %}
+{% set xdata = 'settings' %}
+
+{% block title p__('title', 'FreshPay settings')|title %}
+
+{% block template %}
+	<div>
+		{% include "snippets/back.twig" with {link: 'admin/settings/payments', label: 'Payments'} %}
+
+		<h1 class="mt-4">{{ p__('heading', 'FreshPay settings') }}</h1>
+	</div>
+
+	<x-form>
+		<form @submit.prevent="submit" x-ref="form" autocomplete="off">
+			<div class="flex flex-col gap-8" x-data="{
+				generateKey(ref) {
+					const bytes = crypto.getRandomValues(new Uint8Array(32));
+					this.$refs[ref].value = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+					this.$refs[ref].dispatchEvent(new Event('input', { bubbles: true }));
+				}
+			}">
+				<div class="flex flex-col gap-2">
+					<section class="flex flex-col gap-6 box" data-density="comfortable">
+						<h2>{{ p__('heading', 'Details') }}</h2>
+
+						<div class="flex justify-between items-center p-3 rounded-lg bg-intermediate">
+							{{ p__('label', 'Status') }}
+
+							<label class="inline-flex gap-2 items-center cursor-pointer">
+								<input type="checkbox" name="freshpay[is_enabled]" class="hidden peer" {{ option.freshpay.is_enabled is defined and option.freshpay.is_enabled ? 'checked' : '' }}>
+
+								<span class="block relative w-10 h-6 rounded-3xl transition-all bg-line peer-checked:bg-success after:h-5 after:w-5 after:top-0.5 after:absolute after:left-0 after:ms-0.5 after:transition-all after:rounded-full after:bg-white peer-checked:after:left-4"></span>
+
+								<span class="text-content-dimmed peer-checked:hidden">
+									{{ __('Disabled') }}
+								</span>
+
+								<span class="hidden text-success peer-checked:inline">
+									{{ __('Enabled') }}
+								</span>
+							</label>
+						</div>
+
+						<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+							<div>
+								<label for="freshpay[merchant_id]">{{ p__('label', 'Merchant ID') }}</label>
+								<input type="text" id="freshpay[merchant_id]" name="freshpay[merchant_id]" class="mt-2 input" autocomplete="off" value="{{ option.freshpay.merchant_id ?? '' }}" required/>
+							</div>
+
+							<div>
+								<label for="freshpay[merchant_secrete]">{{ p__('label', 'Merchant secret') }}</label>
+								<input type="text" id="freshpay[merchant_secrete]" name="freshpay[merchant_secrete]" class="mt-2 input" autocomplete="new-password" value="{{ environment == 'demo' ? 'hidden-in-demo' : option.freshpay.merchant_secrete ?? '' }}" required/>
+							</div>
+
+							<div>
+								<label for="freshpay[firstname]">{{ p__('label', 'First name') }}</label>
+								<input type="text" id="freshpay[firstname]" name="freshpay[firstname]" class="mt-2 input" autocomplete="off" value="{{ option.freshpay.firstname ?? '' }}" required/>
+							</div>
+
+							<div>
+								<label for="freshpay[lastname]">{{ p__('label', 'Last name') }}</label>
+								<input type="text" id="freshpay[lastname]" name="freshpay[lastname]" class="mt-2 input" autocomplete="off" value="{{ option.freshpay.lastname ?? '' }}" required/>
+							</div>
+
+							<div>
+								<label for="freshpay[email]">{{ p__('label', 'Email') }}</label>
+								<input type="email" id="freshpay[email]" name="freshpay[email]" class="mt-2 input" autocomplete="off" value="{{ option.freshpay.email ?? '' }}" required/>
+							</div>
+
+							<div>
+								<label for="freshpay[currency]">{{ p__('label', 'Charge currency') }}</label>
+								<select id="freshpay[currency]" name="freshpay[currency]" class="mt-2 input">
+									{% for code, name in currencies %}
+										<option value="{{ code }}" {{ (option.freshpay.currency ?? 'CDF') == code ? 'selected' : '' }}>
+											{{ name }} ({{ code }})
+										</option>
+									{% endfor %}
+								</select>
+
+								<ul class="info mt-2">
+									<li>
+										{{ __('If a currency rate provider is configured, order amounts will be converted into this currency before being sent to FreshPay.') }}
+									</li>
+								</ul>
+							</div>
+						</div>
+					</section>
+
+					<section class="flex flex-col gap-6 box" data-density="comfortable">
+						<h2>{{ p__('heading', 'Callback security') }}</h2>
+
+						<p class="text-sm text-content-dimmed">
+							{{ __('Optional keys. If left empty, FreshPay webhook validation falls back to the merchant secret.') }}
+						</p>
+
+						<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+							<div class="flex flex-col gap-2">
+								<label for="freshpay[encryption_key]">{{ p__('label', 'AES-256-CBC encryption key') }}</label>
+
+								<div class="flex gap-2">
+									<input type="text" id="freshpay[encryption_key]" name="freshpay[encryption_key]" class="input" autocomplete="new-password" value="{{ environment == 'demo' ? 'hidden-in-demo' : option.freshpay.encryption_key ?? '' }}" x-ref="encryptionKey"/>
+
+									<button type="button" class="button button-outline button-sm shrink-0" @click="generateKey('encryptionKey')">
+										{{ p__('button', 'Generate') }}
+									</button>
+								</div>
+							</div>
+
+							<div class="flex flex-col gap-2">
+								<label for="freshpay[signature_key]">{{ p__('label', 'HMAC-SHA256 signature key') }}</label>
+
+								<div class="flex gap-2">
+									<input type="text" id="freshpay[signature_key]" name="freshpay[signature_key]" class="input" autocomplete="new-password" value="{{ environment == 'demo' ? 'hidden-in-demo' : option.freshpay.signature_key ?? '' }}" x-ref="signatureKey"/>
+
+									<button type="button" class="button button-outline button-sm shrink-0" @click="generateKey('signatureKey')">
+										{{ p__('button', 'Generate') }}
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="flex flex-col gap-2">
+							<div class="label">{{ __('Callback URL') }}</div>
+							<x-copy class="badge">{your_domain}/webhooks/freshpay</x-copy>
+						</div>
+					</section>
+
+					<section class="flex flex-col gap-6 box" data-density="comfortable">
+						<h2>{{ p__('heading', 'FreshPay API') }}</h2>
+
+						<div class="flex flex-col gap-2">
+							<div class="label">{{ __('Endpoint') }}</div>
+							<code class="px-3 py-2 rounded-lg bg-intermediate text-sm">https://paydrc.gofreshbakery.net/api/v5/</code>
+						</div>
+					</section>
+				</div>
+
+				<div>
+					<button type="submit" class="button" :processing="isProcessing">
+						{% include "/snippets/spinner.twig" %}
+						{{ p__('button', 'Save changes') }}
+					</button>
+				</div>
+			</div>
+		</form>
+	</x-form>
+{% endblock %}

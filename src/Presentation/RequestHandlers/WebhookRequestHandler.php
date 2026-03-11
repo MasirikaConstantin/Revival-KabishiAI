@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Presentation\RequestHandlers;
 
 use Billing\Infrastructure\Payments\Exceptions\WebhookException;
+use Billing\Infrastructure\Payments\Gateways\FreshPay\FreshPay;
 use Billing\Infrastructure\Payments\PaymentGatewayFactoryInterface;
 use Easy\Http\Message\RequestMethod;
 use Easy\Http\Message\StatusCode;
@@ -30,6 +31,7 @@ class WebhookRequestHandler implements RequestHandlerInterface
 
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
+        $gatewayKey = $request->getAttribute('gateway');
         $gateway = $this->factory->create($request->getAttribute('gateway'));
 
         // Handle the webhook request...
@@ -42,7 +44,20 @@ class WebhookRequestHandler implements RequestHandlerInterface
         try {
             $handler->handle($request);
         } catch (WebhookException $th) {
-            return new JsonResponse(['error' => $th->getMessage()], StatusCode::BAD_REQUEST);
+            $status = in_array(
+                $th->getCode(),
+                [StatusCode::BAD_REQUEST->value, StatusCode::UNAUTHORIZED->value],
+                true
+            ) ? $th->getCode() : StatusCode::BAD_REQUEST->value;
+
+            return new JsonResponse(['error' => $th->getMessage()], $status);
+        }
+
+        if ($gatewayKey === FreshPay::LOOKUP_KEY) {
+            return new JsonResponse([
+                'status' => 'Callback received successfully',
+                'data' => new \stdClass(),
+            ]);
         }
 
         return new EmptyResponse();

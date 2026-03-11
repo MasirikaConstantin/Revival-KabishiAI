@@ -422,6 +422,15 @@ checkout(
 							</form>
 						{% else %}
 							{% set sections = 0 %}
+							{% set has_freshpay = false %}
+							{% set has_regular_gateways = false %}
+							{% for key, gateway in gateways %}
+								{% if key == 'freshpay' %}
+									{% set has_freshpay = true %}
+								{% else %}
+									{% set has_regular_gateways = true %}
+								{% endif %}
+							{% endfor %}
 							{% if card_gateway %}
 								{% set sections = sections + 1 %}
 								<div x-show="!offlinePayment">
@@ -430,7 +439,7 @@ checkout(
 							{% endif %}
 
 
-							{% if gateways|length > 0 or crypto_gateways|length > 0 %}
+							{% if has_regular_gateways or has_freshpay or crypto_gateways|length > 0 %}
 								{% set sections = sections + 1 %}
 
 								{% if sections > 1 %}
@@ -449,36 +458,66 @@ checkout(
 									{% endif %}
 
 									<div class="flex flex-col gap-1">
-										{% if gateways|length > 0 %}
+										{% if has_regular_gateways %}
 											<div class="grid items-center gap-1 {{ cls }}">
 												{% for key, gateway in gateways %}
-													{% set style %}
-													{% if gateway.buttonBackgroundColor %}
-														style="background-color:
-														{{ gateway.buttonBackgroundColor }};
-																																																																																																																																																																																																																																																																																																																																																outline-color:{{ gateway.buttonBackgroundColor }}; 
-																																																																																																																																																																																																																																																																																																																																																color:{{ gateway.buttonTextColor }};"
-													{% endif %}
-													{% endset %}
-
-													<button type="button" class="button" {{ style }} @click="purchase(`{{ key }}`)" :disabled="processing" :processing="processing == `{{ key }}`">
-														{% if gateway.logo %}
-															<span class="[&_svg]:h-4 [&_svg]:w-auto [&_img]:h-4 [&_img]:w-auto">
-																{% if gateway.logo|slice(0,4) == "<svg" %}
-																	{{ gateway.logo|raw }}
-																{% else %}
-																	<img src="{{ gateway.logo }}" alt="{{ gateway.name }}"/>
-																{% endif %}
-															</span>
-														{% else %}
-															<h3>{{ gateway.name }}</h3>
+													{% if key != 'freshpay' %}
+														{% set style %}
+														{% if gateway.buttonBackgroundColor %}
+															style="background-color:
+															{{ gateway.buttonBackgroundColor }};
+																																																																																																																																																																																																																																																																																																																																																	outline-color:{{ gateway.buttonBackgroundColor }};
+																																																																																																																																																																																																																																																																																																																																																	color:{{ gateway.buttonTextColor }};"
 														{% endif %}
+														{% endset %}
 
+														<button type="button" class="button" {{ style }} @click="purchase(`{{ key }}`)" :disabled="processing" :processing="processing == `{{ key }}`">
+															{% if gateway.logo %}
+																<span class="[&_svg]:h-4 [&_svg]:w-auto [&_img]:h-4 [&_img]:w-auto">
+																	{% if gateway.logo|slice(0,4) == "<svg" %}
+																		{{ gateway.logo|raw }}
+																	{% else %}
+																		<img src="{{ gateway.logo }}" alt="{{ gateway.name }}"/>
+																	{% endif %}
+																</span>
+															{% else %}
+																<h3>{{ gateway.name }}</h3>
+															{% endif %}
+
+															{% include "/snippets/spinner.twig" %}
+														</button>
+													{% endif %}
+												{% endfor %}
+												</div>
+											{% endif %}
+
+											{% if has_freshpay %}
+												<div class="flex flex-col gap-4 p-5 rounded-2xl border border-line-dimmed bg-intermediate/30">
+													<div class="flex flex-col gap-1">
+														<h3 class="font-semibold">FreshPay</h3>
+														<p class="text-sm text-content-dimmed">
+															{{ __('Enter the mobile number and payment method to start the FreshPay payment.') }}
+														</p>
+													</div>
+
+													<div class="grid gap-4 md:grid-cols-2">
+														<div class="flex flex-col gap-2">
+															<label for="freshpay.customer_number">{{ p__('label', 'Customer number') }}</label>
+															<input id="freshpay.customer_number" type="text" class="input" autocomplete="tel" placeholder="0972148867" x-model="freshpay.customer_number">
+														</div>
+
+														<div class="flex flex-col gap-2">
+															<label for="freshpay.method">{{ p__('label', 'Method') }}</label>
+															<input id="freshpay.method" type="text" class="input" autocomplete="off" placeholder="airtel" x-model="freshpay.method">
+														</div>
+													</div>
+
+													<button type="button" class="button" @click="purchase('freshpay')" :disabled="processing" :processing="processing == 'freshpay'">
+														<span>{{ __('Pay with FreshPay') }}</span>
 														{% include "/snippets/spinner.twig" %}
 													</button>
-												{% endfor %}
-											</div>
-										{% endif %}
+												</div>
+											{% endif %}
 
 										{% if crypto_gateways|length > 0  %}
 											<div class="flex flex-col gap-1">
