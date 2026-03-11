@@ -190,7 +190,11 @@ class CheckoutRequestHandler extends BillingApi implements
         }
 
         $freshpay = (object) ($payload->freshpay ?? []);
-        $customerNumber = trim((string) ($freshpay->customer_number ?? ''));
+        $customerNumber = trim((string) (
+            $freshpay->customer_number
+            ?? $payload->customer_number
+            ?? ''
+        ));
         $workspacePhone = $workspace->getAddress()?->phoneNumber;
         $userPhone = $user->getPhoneNumber()->value;
 

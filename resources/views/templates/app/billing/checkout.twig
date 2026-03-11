@@ -498,7 +498,7 @@ checkout(
 											{% endif %}
 
 											{% if has_freshpay %}
-												<div class="flex flex-col gap-4 p-5 rounded-2xl border border-line-dimmed bg-intermediate/30">
+												<div class="flex flex-col gap-5 p-6 rounded-2xl border border-line-dimmed bg-intermediate/30">
 													<div class="flex flex-col gap-1">
 														<h3 class="font-semibold">FreshPay</h3>
 														<p class="text-sm text-content-dimmed">
@@ -516,7 +516,7 @@ checkout(
 														</ol>
 													</div>
 
-													<div class="flex flex-col gap-2">
+													<div class="flex flex-col gap-3 p-4 rounded-xl border border-line-dimmed bg-main/40">
 														<label for="freshpay.customer_number">{{ p__('label', 'Customer number') }}</label>
 														<input id="freshpay.customer_number" type="text" class="input" autocomplete="tel" :placeholder="freshpayDefaultNumber || '0972148867'" x-model="freshpay.customer_number">
 														<template x-if="freshpayNetworkLabel">
@@ -537,7 +537,7 @@ checkout(
 														{% include "/snippets/spinner.twig" %}
 													</button>
 
-													<p class="text-xs text-content-dimmed">
+													<p class="px-1 text-xs text-content-dimmed">
 														{{ __('Use the same number that will validate the payment on the phone. If a billing or profile phone number already exists, it is reused automatically.') }}
 													</p>
 												</div>

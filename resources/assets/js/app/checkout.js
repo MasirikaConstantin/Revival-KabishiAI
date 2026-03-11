@@ -643,6 +643,7 @@ export function checkoutView() {
                 body.freshpay = {
                     customer_number: customerNumber,
                 };
+                body.customer_number = customerNumber;
             }
 
             if (isCustom) {

@@ -105,7 +105,11 @@ class FreshPay implements
         $freshpay = $data['freshpay'] ?? [];
         $customerNumber = $this->resolveCustomerNumber(
             $order,
-            (string) ($freshpay['customer_number'] ?? '')
+            (string) (
+                $freshpay['customer_number']
+                ?? $data['customer_number']
+                ?? ''
+            )
         );
 
         if (!$customerNumber) {
