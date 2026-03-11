@@ -63,116 +63,142 @@ class CheckoutRequestHandler extends BillingApi implements
 
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
-        $this->validateRequest($request);
-        $payload = (object) $request->getParsedBody();
+        $order = null;
+        $payload = null;
 
-        /** @var WorkspaceEntity */
-        $ws = $request->getAttribute(WorkspaceEntity::class);
+        try {
+            $this->validateRequest($request);
+            $payload = (object) $request->getParsedBody();
 
-        // Current subscription, cancel after new subscription is created
-        $sub = $ws->getSubscription();
+            /** @var WorkspaceEntity */
+            $ws = $request->getAttribute(WorkspaceEntity::class);
 
-        $plan = $payload->id ?? null;
-        $custom = false;
-        if (!$plan) {
-            if (!$this->customCreditsEnabled) {
-                throw new UnprocessableEntityException('Custom credits are not enabled');
-            }
+            $this->logger->info('Billing checkout handler started', [
+                'gateway' => $payload->gateway ?? null,
+                'workspace_id' => $ws->getId()->getValue()->toString(),
+                'plan_id' => $payload->id ?? null,
+                'has_amount' => property_exists($payload, 'amount'),
+            ]);
 
-            if (!$ws->getSubscription()) {
-                throw new UnprocessableEntityException('Workspace does not have a subscription');
-            }
+            // Current subscription, cancel after new subscription is created
+            $sub = $ws->getSubscription();
 
-            $amount = $payload->amount;
-            if (!$amount || $amount <= 0) {
-                throw new UnprocessableEntityException('Invalid amount');
-            }
+            $plan = $payload->id ?? null;
+            $custom = false;
+            if (!$plan) {
+                if (!$this->customCreditsEnabled) {
+                    throw new UnprocessableEntityException('Custom credits are not enabled');
+                }
 
-            $fraction = Currencies::getFractionDigits($this->currency);
-            $credits = ($amount / 10 ** $fraction) * $this->customCreditsRate;
+                if (!$ws->getSubscription()) {
+                    throw new UnprocessableEntityException('Workspace does not have a subscription');
+                }
 
-            // This is temporary plan, it won't be saved to the database
-            $plan = new PlanEntity(
-                new Title('Credit purchase'),
-                new Price($amount),
-                BillingCycle::ONE_TIME
-            );
+                $amount = $payload->amount;
+                if (!$amount || $amount <= 0) {
+                    throw new UnprocessableEntityException('Invalid amount');
+                }
 
-            $plan->setCreditCount(new CreditCount($credits));
+                $fraction = Currencies::getFractionDigits($this->currency);
+                $credits = ($amount / 10 ** $fraction) * $this->customCreditsRate;
 
-            $plan = $plan->getSnapshot();
-            $plan->unlink();
-            $custom = true;
-        }
-
-        // Create an order...
-        $cmd = new CreateOrderCommand($ws, $plan);
-
-        if (
-            !$custom // Custom credits don't support coupons
-            && property_exists($payload, 'coupon')
-            && $payload->coupon
-        ) {
-            $cmd->setCoupon($payload->coupon);
-        }
-
-        /** @var OrderEntity */
-        $order = $this->dispatcher->dispatch($cmd);
-
-        if ($order->getTotalPrice()->value > 0 && !$order->isPaid()) {
-            try {
-                // Pay for order...
-                $gateway = $this->factory->create($payload->gateway);
-                $checkoutData = json_decode(json_encode($payload), true) ?: [];
-                $resp = $gateway instanceof CheckoutDataAwarePaymentGatewayInterface
-                    ? $gateway->purchaseWithCheckoutData($order, $checkoutData)
-                    : $gateway->purchase($order);
-            } catch (PaymentException $th) {
-                throw new UnprocessableEntityException(
-                    previous: $th,
+                $plan = new PlanEntity(
+                    new Title('Credit purchase'),
+                    new Price($amount),
+                    BillingCycle::ONE_TIME
                 );
-            } catch (Throwable $th) {
-                $this->logger->error('Billing checkout failed unexpectedly', [
-                    'gateway' => $payload->gateway ?? null,
-                    'order_id' => $order->getId()->getValue()->toString(),
-                    'exception' => $th::class,
-                    'message' => $th->getMessage(),
-                    'file' => $th->getFile(),
-                    'line' => $th->getLine(),
-                ]);
 
-                throw $th;
+                $plan->setCreditCount(new CreditCount($credits));
+
+                $plan = $plan->getSnapshot();
+                $plan->unlink();
+                $custom = true;
             }
 
-            if ($resp instanceof UriInterface) {
-                return new JsonResponse(
-                    [
-                        'redirect' => (string) $resp
-                    ]
-                );
+            $cmd = new CreateOrderCommand($ws, $plan);
+
+            if (
+                !$custom
+                && property_exists($payload, 'coupon')
+                && $payload->coupon
+            ) {
+                $cmd->setCoupon($payload->coupon);
             }
 
-            if ($resp instanceof PurchaseToken) {
-                return new JsonResponse([
-                    'id' => $order->getId()->getValue()->toString(),
-                    'purchase_token' => $resp->value
-                ]);
+            /** @var OrderEntity */
+            $order = $this->dispatcher->dispatch($cmd);
+
+            $this->logger->info('Billing order created', [
+                'gateway' => $payload->gateway ?? null,
+                'order_id' => $order->getId()->getValue()->toString(),
+                'total' => $order->getTotalPrice()->value,
+                'is_paid' => $order->isPaid(),
+            ]);
+
+            if ($order->getTotalPrice()->value > 0 && !$order->isPaid()) {
+                try {
+                    $gateway = $this->factory->create($payload->gateway);
+                    $checkoutData = json_decode(json_encode($payload), true) ?: [];
+                    $resp = $gateway instanceof CheckoutDataAwarePaymentGatewayInterface
+                        ? $gateway->purchaseWithCheckoutData($order, $checkoutData)
+                        : $gateway->purchase($order);
+                } catch (PaymentException $th) {
+                    throw new UnprocessableEntityException(
+                        previous: $th,
+                    );
+                } catch (Throwable $th) {
+                    $this->logger->error('Billing checkout failed unexpectedly', [
+                        'gateway' => $payload->gateway ?? null,
+                        'order_id' => $order->getId()->getValue()->toString(),
+                        'exception' => $th::class,
+                        'message' => $th->getMessage(),
+                        'file' => $th->getFile(),
+                        'line' => $th->getLine(),
+                    ]);
+
+                    throw $th;
+                }
+
+                if ($resp instanceof UriInterface) {
+                    return new JsonResponse(
+                        [
+                            'redirect' => (string) $resp
+                        ]
+                    );
+                }
+
+                if ($resp instanceof PurchaseToken) {
+                    return new JsonResponse([
+                        'id' => $order->getId()->getValue()->toString(),
+                        'purchase_token' => $resp->value
+                    ]);
+                }
+
+                $cmd = new PayOrderCommand($order, $payload->gateway, $resp);
+                $this->dispatcher->dispatch($cmd);
             }
 
-            $cmd = new PayOrderCommand($order, $payload->gateway, $resp);
-            $this->dispatcher->dispatch($cmd);
+            $cmd = new FulfillOrderCommand($order);
+            $resp = $this->dispatcher->dispatch($cmd);
+
+            if ($sub) {
+                $cmd = new CancelSubscriptionCommand($sub);
+                $this->dispatcher->dispatch($cmd);
+            }
+
+            return new JsonResponse(new OrderResource($order), StatusCode::CREATED);
+        } catch (Throwable $th) {
+            $this->logger->error('Billing checkout aborted', [
+                'gateway' => $payload?->gateway ?? null,
+                'order_id' => $order?->getId()->getValue()->toString(),
+                'exception' => $th::class,
+                'message' => $th->getMessage(),
+                'file' => $th->getFile(),
+                'line' => $th->getLine(),
+            ]);
+
+            throw $th;
         }
-
-        $cmd = new FulfillOrderCommand($order);
-        $resp = $this->dispatcher->dispatch($cmd);
-
-        // Cancel current subscription
-        if ($sub) {
-            $cmd = new CancelSubscriptionCommand($sub);
-            $this->dispatcher->dispatch($cmd);
-        }
-
-        return new JsonResponse(new OrderResource($order), StatusCode::CREATED);
     }
 
     private function validateRequest(ServerRequestInterface $req): void
