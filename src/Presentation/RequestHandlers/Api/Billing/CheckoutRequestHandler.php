@@ -38,6 +38,7 @@ use Shared\Infrastructure\CommandBus\Dispatcher;
 use Symfony\Component\Intl\Currencies;
 use User\Domain\Entities\UserEntity;
 use Workspace\Domain\Entities\WorkspaceEntity;
+use Throwable;
 
 #[Route(path: '/checkout', method: RequestMethod::POST)]
 class CheckoutRequestHandler extends BillingApi implements
@@ -119,10 +120,9 @@ class CheckoutRequestHandler extends BillingApi implements
         $order = $this->dispatcher->dispatch($cmd);
 
         if ($order->getTotalPrice()->value > 0 && !$order->isPaid()) {
-            // Pay for order...
-            $gateway = $this->factory->create($payload->gateway);
-
             try {
+                // Pay for order...
+                $gateway = $this->factory->create($payload->gateway);
                 $checkoutData = json_decode(json_encode($payload), true) ?: [];
                 $resp = $gateway instanceof CheckoutDataAwarePaymentGatewayInterface
                     ? $gateway->purchaseWithCheckoutData($order, $checkoutData)
@@ -131,6 +131,17 @@ class CheckoutRequestHandler extends BillingApi implements
                 throw new UnprocessableEntityException(
                     previous: $th,
                 );
+            } catch (Throwable $th) {
+                $this->logger->error('Billing checkout failed unexpectedly', [
+                    'gateway' => $payload->gateway ?? null,
+                    'order_id' => $order->getId()->getValue()->toString(),
+                    'exception' => $th::class,
+                    'message' => $th->getMessage(),
+                    'file' => $th->getFile(),
+                    'line' => $th->getLine(),
+                ]);
+
+                throw $th;
             }
 
             if ($resp instanceof UriInterface) {
