@@ -1,7 +1,7 @@
 {
   "name": "aikeedo",
   "version": "3.x",
-  "description": "AIKEEDO - AI Generator",
+  "description": "Kabishi AI - AI Generator",
   "main": "index.js",
   "directories": {
     "doc": "docs",

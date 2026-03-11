@@ -1,4 +1,4 @@
-# AIKEEDO - AI Powered Content Platform
+# Kabishi AI - AI Powered Content Platform
 
 ## Documentation
 
