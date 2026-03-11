@@ -52,6 +52,18 @@ class FreshPay implements
 
         #[Inject('option.freshpay.email')]
         private ?string $email = null,
+
+        #[Inject('option.freshpay.networks.airtel')]
+        private string $airtelPrefixes = '097,098,099',
+
+        #[Inject('option.freshpay.networks.mpesa')]
+        private string $mpesaPrefixes = '081,082,083',
+
+        #[Inject('option.freshpay.networks.orange')]
+        private string $orangePrefixes = '084,085,089',
+
+        #[Inject('option.freshpay.networks.africell')]
+        private string $africellPrefixes = '090',
     ) {}
 
     public function isEnabled(): bool
@@ -91,15 +103,20 @@ class FreshPay implements
         $this->validateConfiguration();
 
         $freshpay = $data['freshpay'] ?? [];
-        $customerNumber = trim((string) ($freshpay['customer_number'] ?? ''));
-        $method = trim((string) ($freshpay['method'] ?? ''));
+        $customerNumber = $this->resolveCustomerNumber(
+            $order,
+            (string) ($freshpay['customer_number'] ?? '')
+        );
 
         if (!$customerNumber) {
             throw new PaymentException('FreshPay customer number is required.');
         }
 
+        $method = $this->detectNetwork($customerNumber);
         if (!$method) {
-            throw new PaymentException('FreshPay payment method is required.');
+            throw new PaymentException(
+                'Unable to detect the FreshPay network from this phone number.'
+            );
         }
 
         [$amount, $currency] = $this->helper->convert(
@@ -186,6 +203,26 @@ class FreshPay implements
         return WebhookRequestHandler::class;
     }
 
+    private function resolveCustomerNumber(
+        OrderEntity $order,
+        string $customerNumber
+    ): string {
+        $normalized = $this->normalizePhoneNumber($customerNumber);
+        if ($normalized !== '') {
+            return $normalized;
+        }
+
+        $workspace = $order->getWorkspace();
+        $workspacePhone = $workspace->getAddress()?->phoneNumber;
+        $normalized = $this->normalizePhoneNumber((string) $workspacePhone);
+        if ($normalized !== '') {
+            return $normalized;
+        }
+
+        $ownerPhone = $workspace->getOwner()->getPhoneNumber()->value;
+        return $this->normalizePhoneNumber((string) $ownerPhone);
+    }
+
     private function validateConfiguration(): void
     {
         $required = [
@@ -203,6 +240,77 @@ class FreshPay implements
                 );
             }
         }
+    }
+
+    private function detectNetwork(string $customerNumber): ?string
+    {
+        foreach ($this->getNetworkPrefixes() as $network => $prefixes) {
+            foreach ($prefixes as $prefix) {
+                if ($this->matchesPrefix($customerNumber, $prefix)) {
+                    return $network;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string,array<int,string>>
+     */
+    private function getNetworkPrefixes(): array
+    {
+        return [
+            'airtel' => $this->splitPrefixes($this->airtelPrefixes),
+            'mpesa' => $this->splitPrefixes($this->mpesaPrefixes),
+            'orange' => $this->splitPrefixes($this->orangePrefixes),
+            'africell' => $this->splitPrefixes($this->africellPrefixes),
+        ];
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function splitPrefixes(string $prefixes): array
+    {
+        $parts = preg_split('/[\s,;|]+/', $prefixes) ?: [];
+        $normalized = [];
+
+        foreach ($parts as $prefix) {
+            $prefix = $this->normalizePhoneNumber($prefix);
+            if (!$prefix) {
+                continue;
+            }
+
+            $normalized[] = $prefix;
+
+            if (str_starts_with($prefix, '0')) {
+                $normalized[] = ltrim($prefix, '0');
+            }
+        }
+
+        return array_values(array_unique(array_filter($normalized)));
+    }
+
+    private function matchesPrefix(string $phoneNumber, string $prefix): bool
+    {
+        return str_starts_with($phoneNumber, $prefix)
+            || str_starts_with(ltrim($phoneNumber, '0'), ltrim($prefix, '0'));
+    }
+
+    private function normalizePhoneNumber(string $phoneNumber): string
+    {
+        $normalized = preg_replace('/\D+/', '', $phoneNumber) ?: '';
+
+        if (str_starts_with($normalized, '00243')) {
+            return '0' . substr($normalized, 5);
+        }
+
+        if (str_starts_with($normalized, '243')) {
+            return '0' . substr($normalized, 3);
+        }
+
+        return $normalized;
     }
 
     private function formatAmount(int $amount, string $currency): string

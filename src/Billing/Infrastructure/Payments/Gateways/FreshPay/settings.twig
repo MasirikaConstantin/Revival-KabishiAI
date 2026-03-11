@@ -134,6 +134,41 @@
 							<code class="px-3 py-2 rounded-lg bg-intermediate text-sm">https://paydrc.gofreshbakery.net/api/v5/</code>
 						</div>
 					</section>
+
+					<section class="flex flex-col gap-6 box" data-density="comfortable">
+						<h2>{{ p__('heading', 'Network detection') }}</h2>
+
+						<p class="text-sm text-content-dimmed">
+							{{ __('FreshPay network is detected automatically from the customer phone number prefix.') }}
+						</p>
+
+						<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+							<div>
+								<label for="freshpay[networks][airtel]">{{ p__('label', 'Airtel prefixes') }}</label>
+								<input type="text" id="freshpay[networks][airtel]" name="freshpay[networks][airtel]" class="mt-2 input" autocomplete="off" value="{{ option.freshpay.networks.airtel ?? '097,098,099' }}" placeholder="097,098,099"/>
+							</div>
+
+							<div>
+								<label for="freshpay[networks][mpesa]">{{ p__('label', 'M-Pesa prefixes') }}</label>
+								<input type="text" id="freshpay[networks][mpesa]" name="freshpay[networks][mpesa]" class="mt-2 input" autocomplete="off" value="{{ option.freshpay.networks.mpesa ?? '081,082,083' }}" placeholder="081,082,083"/>
+							</div>
+
+							<div>
+								<label for="freshpay[networks][orange]">{{ p__('label', 'Orange prefixes') }}</label>
+								<input type="text" id="freshpay[networks][orange]" name="freshpay[networks][orange]" class="mt-2 input" autocomplete="off" value="{{ option.freshpay.networks.orange ?? '084,085,089' }}" placeholder="084,085,089"/>
+							</div>
+
+							<div>
+								<label for="freshpay[networks][africell]">{{ p__('label', 'Africell prefixes') }}</label>
+								<input type="text" id="freshpay[networks][africell]" name="freshpay[networks][africell]" class="mt-2 input" autocomplete="off" value="{{ option.freshpay.networks.africell ?? '090' }}" placeholder="090"/>
+							</div>
+						</div>
+
+						<ul class="info">
+							<li>{{ __('Separate prefixes with commas. Example: 097,098,099') }}</li>
+							<li>{{ __('The checkout no longer asks the user to choose a network manually.') }}</li>
+						</ul>
+					</section>
 				</div>
 
 				<div>

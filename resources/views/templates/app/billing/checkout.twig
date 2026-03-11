@@ -5,7 +5,13 @@ checkout(
 {{ (plan ?? {})|json_encode() }},
 {{ voice_count }},
 {{ assistant_count }},
-{{ is_custom ? 'true' : 'false' }}
+{{ is_custom ? 'true' : 'false' }},
+{{ {
+	airtel: option.freshpay.networks.airtel ?? '097,098,099',
+	mpesa: option.freshpay.networks.mpesa ?? '081,082,083',
+	orange: option.freshpay.networks.orange ?? '084,085,089',
+	africell: option.freshpay.networks.africell ?? '090'
+}|json_encode()|raw }}
 )
 {% endset %}
 
@@ -496,7 +502,7 @@ checkout(
 													<div class="flex flex-col gap-1">
 														<h3 class="font-semibold">FreshPay</h3>
 														<p class="text-sm text-content-dimmed">
-															{{ __('Enter the mobile number and payment method to start the FreshPay payment.') }}
+															{{ __('Enter the mobile number to start the FreshPay payment.') }}
 														</p>
 													</div>
 
@@ -504,22 +510,26 @@ checkout(
 														<div class="font-medium">{{ __('How subscription payment works with FreshPay') }}</div>
 														<ol class="flex flex-col gap-1 list-decimal list-inside text-content-dimmed">
 															<li>{{ __('Enter the phone number that will receive the payment prompt.') }}</li>
-															<li>{{ __('Choose the operator or method used by the customer, for example airtel.') }}</li>
+															<li>{{ __('The network is detected automatically from the prefix: Airtel, M-Pesa, Orange or Africell.') }}</li>
 															<li>{{ __('Click Pay with FreshPay and confirm the payment request on the phone.') }}</li>
 															<li>{{ __('You are redirected to the order receipt where payment status is refreshed automatically.') }}</li>
 														</ol>
 													</div>
 
-													<div class="grid gap-4 md:grid-cols-2">
-														<div class="flex flex-col gap-2">
-															<label for="freshpay.customer_number">{{ p__('label', 'Customer number') }}</label>
-															<input id="freshpay.customer_number" type="text" class="input" autocomplete="tel" placeholder="0972148867" x-model="freshpay.customer_number">
-														</div>
-
-														<div class="flex flex-col gap-2">
-															<label for="freshpay.method">{{ p__('label', 'Method') }}</label>
-															<input id="freshpay.method" type="text" class="input" autocomplete="off" placeholder="airtel" x-model="freshpay.method">
-														</div>
+													<div class="flex flex-col gap-2">
+														<label for="freshpay.customer_number">{{ p__('label', 'Customer number') }}</label>
+														<input id="freshpay.customer_number" type="text" class="input" autocomplete="tel" :placeholder="freshpayDefaultNumber || '0972148867'" x-model="freshpay.customer_number">
+														<template x-if="freshpayNetworkLabel">
+															<p class="text-xs text-success">
+																{{ __('Detected network:') }}
+																<span x-text="freshpayNetworkLabel"></span>
+															</p>
+														</template>
+														<template x-if="freshpay.customer_number && !freshpayNetworkLabel">
+															<p class="text-xs text-failure">
+																{{ __('This prefix does not match your FreshPay network settings yet.') }}
+															</p>
+														</template>
 													</div>
 
 													<button type="button" class="button" @click="purchase('freshpay')" :disabled="processing" :processing="processing == 'freshpay'">
@@ -528,7 +538,7 @@ checkout(
 													</button>
 
 													<p class="text-xs text-content-dimmed">
-														{{ __('Use the same number that will validate the payment on the phone.') }}
+														{{ __('Use the same number that will validate the payment on the phone. If a billing or profile phone number already exists, it is reused automatically.') }}
 													</p>
 												</div>
 											{% endif %}

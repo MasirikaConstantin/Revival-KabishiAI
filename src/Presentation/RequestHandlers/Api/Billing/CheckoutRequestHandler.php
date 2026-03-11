@@ -170,7 +170,6 @@ class CheckoutRequestHandler extends BillingApi implements
             'gateway' => 'string',
             'coupon' => 'string|nullable',
             'freshpay.customer_number' => 'nullable|string|max:30',
-            'freshpay.method' => 'nullable|string|max:30',
         ]);
 
         /** @var UserEntity */
@@ -191,15 +190,17 @@ class CheckoutRequestHandler extends BillingApi implements
         }
 
         $freshpay = (object) ($payload->freshpay ?? []);
-        if (!($freshpay->customer_number ?? null)) {
-            throw new UnprocessableEntityException(
-                'FreshPay customer number is required.'
-            );
-        }
+        $customerNumber = trim((string) ($freshpay->customer_number ?? ''));
+        $workspacePhone = $workspace->getAddress()?->phoneNumber;
+        $userPhone = $user->getPhoneNumber()->value;
 
-        if (!($freshpay->method ?? null)) {
+        if (
+            $customerNumber === ''
+            && !$workspacePhone
+            && !$userPhone
+        ) {
             throw new UnprocessableEntityException(
-                'FreshPay payment method is required.'
+                'FreshPay customer number is required. Add one in checkout, workspace billing address or account profile.'
             );
         }
     }

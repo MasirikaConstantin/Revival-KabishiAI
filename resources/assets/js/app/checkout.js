@@ -415,11 +415,13 @@ export function checkoutView() {
         plan = {},
         voiceCount = 0,
         assistantCount = 0,
-        isCustom = false
+        isCustom = false,
+        networkPrefixes = {}
     ) => ({
         plan: plan,
         voiceCount: voiceCount,
         assistantCount: assistantCount,
+        networkPrefixes: networkPrefixes || {},
         coupon: {
             code: null,
             error: null,
@@ -432,11 +434,32 @@ export function checkoutView() {
         offlinePayment: null,
         freshpay: {
             customer_number: '',
-            method: 'airtel',
         },
 
         init() {
             this.preCheck();
+            this.initFreshpay();
+        },
+
+        get freshpayDefaultNumber() {
+            return this.$store.workspace?.address?.phone_number
+                || this.$store.user?.phone_number
+                || '';
+        },
+
+        get freshpayNetwork() {
+            return this.detectFreshpayNetwork(this.freshpay.customer_number);
+        },
+
+        get freshpayNetworkLabel() {
+            const labels = {
+                airtel: 'Airtel',
+                mpesa: 'M-Pesa',
+                orange: 'Orange',
+                africell: 'Africell',
+            };
+
+            return this.freshpayNetwork ? labels[this.freshpayNetwork] : null;
         },
 
         preCheck() {
@@ -465,6 +488,69 @@ export function checkoutView() {
             }
 
             this.proceed = true;
+        },
+
+        initFreshpay() {
+            if (this.freshpay.customer_number) {
+                return;
+            }
+
+            this.freshpay.customer_number = this.freshpayDefaultNumber;
+        },
+
+        getFreshpayNetworkPrefixes() {
+            return {
+                airtel: this.networkPrefixes.airtel || '097,098,099',
+                mpesa: this.networkPrefixes.mpesa || '081,082,083',
+                orange: this.networkPrefixes.orange || '084,085,089',
+                africell: this.networkPrefixes.africell || '090',
+            };
+        },
+
+        parseFreshpayPrefixes(prefixes) {
+            return (prefixes || '')
+                .split(/[\s,;|]+/)
+                .map(prefix => this.normalizeFreshpayPhoneNumber(prefix))
+                .filter(Boolean)
+                .flatMap(prefix => prefix.startsWith('0')
+                    ? [prefix, prefix.replace(/^0+/, '')]
+                    : [prefix]);
+        },
+
+        normalizeFreshpayPhoneNumber(phoneNumber) {
+            let normalized = (phoneNumber || '').replace(/\D+/g, '');
+
+            if (normalized.startsWith('00243')) {
+                return '0' + normalized.slice(5);
+            }
+
+            if (normalized.startsWith('243')) {
+                return '0' + normalized.slice(3);
+            }
+
+            return normalized;
+        },
+
+        detectFreshpayNetwork(phoneNumber) {
+            const normalizedNumber = this.normalizeFreshpayPhoneNumber(phoneNumber);
+            if (!normalizedNumber) {
+                return null;
+            }
+
+            const compactNumber = normalizedNumber.replace(/^0+/, '');
+            for (const [network, prefixes] of Object.entries(this.getFreshpayNetworkPrefixes())) {
+                for (const prefix of this.parseFreshpayPrefixes(prefixes)) {
+                    const compactPrefix = prefix.replace(/^0+/, '');
+                    if (
+                        normalizedNumber.startsWith(prefix)
+                        || compactNumber.startsWith(compactPrefix)
+                    ) {
+                        return network;
+                    }
+                }
+            }
+
+            return null;
         },
 
         applyCoupon() {
@@ -539,7 +625,24 @@ export function checkoutView() {
             }
 
             if (gateway === 'freshpay') {
-                body.freshpay = { ...this.freshpay };
+                this.initFreshpay();
+
+                const customerNumber = (this.freshpay.customer_number || '').trim();
+                if (!customerNumber) {
+                    this.processing = null;
+                    this.error = 'FreshPay customer number is required.';
+                    return;
+                }
+
+                if (!this.detectFreshpayNetwork(customerNumber)) {
+                    this.processing = null;
+                    this.error = 'FreshPay network could not be detected from this phone number.';
+                    return;
+                }
+
+                body.freshpay = {
+                    customer_number: customerNumber,
+                };
             }
 
             if (isCustom) {
