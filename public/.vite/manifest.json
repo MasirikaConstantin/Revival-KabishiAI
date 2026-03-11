@@ -1,0 +1,93 @@
+{
+  "_api-SJnrmEy5.js": {
+    "file": "assets/api-SJnrmEy5.js",
+    "name": "api",
+    "imports": [
+      "_module.esm-D2dFSn_T.js"
+    ]
+  },
+  "_module.esm-D2dFSn_T.js": {
+    "file": "assets/module.esm-D2dFSn_T.js",
+    "name": "module.esm"
+  },
+  "_module.esm-DVbl0fnz.js": {
+    "file": "assets/module.esm-DVbl0fnz.js",
+    "name": "module.esm"
+  },
+  "_pin-DOd3kqzW.js": {
+    "file": "assets/pin-DOd3kqzW.js",
+    "name": "pin"
+  },
+  "_redirect-CPFN15vL.js": {
+    "file": "assets/redirect-CPFN15vL.js",
+    "name": "redirect"
+  },
+  "resources/assets/css/fonts/tabler-icons.ttf": {
+    "file": "assets/tabler-icons-C4fNWA7X.ttf",
+    "src": "resources/assets/css/fonts/tabler-icons.ttf"
+  },
+  "resources/assets/css/fonts/tabler-icons.woff": {
+    "file": "assets/tabler-icons-D1Ay1q-p.woff",
+    "src": "resources/assets/css/fonts/tabler-icons.woff"
+  },
+  "resources/assets/css/fonts/tabler-icons.woff2": {
+    "file": "assets/tabler-icons-BM2YwPh7.woff2",
+    "src": "resources/assets/css/fonts/tabler-icons.woff2"
+  },
+  "resources/assets/css/icons.css": {
+    "file": "assets/icons-CyqECmnr.css",
+    "src": "resources/assets/css/icons.css",
+    "isEntry": true
+  },
+  "resources/assets/css/index.css": {
+    "file": "assets/style-Dnam-hEx.css",
+    "src": "resources/assets/css/index.css",
+    "isEntry": true
+  },
+  "resources/assets/js/admin/index.js": {
+    "file": "assets/admin-CkBSzZYk.js",
+    "name": "admin",
+    "src": "resources/assets/js/admin/index.js",
+    "isEntry": true,
+    "imports": [
+      "_module.esm-D2dFSn_T.js",
+      "_module.esm-DVbl0fnz.js",
+      "_api-SJnrmEy5.js"
+    ]
+  },
+  "resources/assets/js/app/index.js": {
+    "file": "assets/app-i3Js0WhA.js",
+    "name": "app",
+    "src": "resources/assets/js/app/index.js",
+    "isEntry": true,
+    "imports": [
+      "_module.esm-D2dFSn_T.js",
+      "_module.esm-DVbl0fnz.js",
+      "_api-SJnrmEy5.js",
+      "_pin-DOd3kqzW.js",
+      "_redirect-CPFN15vL.js"
+    ]
+  },
+  "resources/assets/js/auth/index.js": {
+    "file": "assets/auth-Bgo3VlTE.js",
+    "name": "auth",
+    "src": "resources/assets/js/auth/index.js",
+    "isEntry": true,
+    "imports": [
+      "_module.esm-D2dFSn_T.js",
+      "_api-SJnrmEy5.js",
+      "_redirect-CPFN15vL.js"
+    ]
+  },
+  "resources/assets/js/base/index.js": {
+    "file": "assets/base-DV2hUzRc.js",
+    "name": "base",
+    "src": "resources/assets/js/base/index.js",
+    "isEntry": true,
+    "imports": [
+      "_redirect-CPFN15vL.js",
+      "_module.esm-D2dFSn_T.js",
+      "_pin-DOd3kqzW.js"
+    ]
+  }
+}

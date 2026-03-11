@@ -24,6 +24,10 @@ coverage
 
 # Public assets (build files)
 /public/**/*
+!/public/.vite/
+!/public/.vite/**/*
+!/public/assets/
+!/public/assets/**/*
 !/public/uploads/
 !/public/push/onesignal/
 !/public/index.php
